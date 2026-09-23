@@ -1,0 +1,446 @@
+{
+  "info": {
+    "name": "Analytics Service",
+    "_postman_id": "a1b2c3d4-e5f6-4a78-9b0c-analytics-001",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" },
+    { "key": "requesterId", "value": "" },
+    { "key": "executorId", "value": "" },
+    { "key": "sprintId", "value": "" },
+    { "key": "taskGroupId", "value": "" },
+    { "key": "taskBrandId", "value": "" },
+    { "key": "authUserId", "value": "" },
+    { "key": "authUserEmail", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tester@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.accessToken) pm.collectionVariables.set('token', body.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tester@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.accessToken) pm.collectionVariables.set('token', body.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Team Members",
+      "item": [
+        {
+          "name": "Create Team Member (Requester)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Olena P\",\n  \"email\": \"olena.p@example.com\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/team-members", "host": ["{{baseUrl}}"], "path": ["team-members"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) pm.collectionVariables.set('requesterId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Team Member (Executor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Vladyslav Ko\",\n  \"email\": \"vladyslav.ko@example.com\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/team-members", "host": ["{{baseUrl}}"], "path": ["team-members"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) pm.collectionVariables.set('executorId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Team Members",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/team-members", "host": ["{{baseUrl}}"], "path": ["team-members"] }
+          }
+        },
+        {
+          "name": "Get Active Team Members (Watchlist)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/team-members?active=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["team-members"],
+              "query": [{ "key": "active", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "Get Team Member",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/team-members/{{executorId}}", "host": ["{{baseUrl}}"], "path": ["team-members", "{{executorId}}"] }
+          }
+        },
+        {
+          "name": "Update Team Member (toggle watchlist)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/team-members/{{executorId}}", "host": ["{{baseUrl}}"], "path": ["team-members", "{{executorId}}"] }
+          }
+        },
+        {
+          "name": "Search Auth Users (live, admin-only)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/team-members/auth-search?search=vladyslav",
+              "host": ["{{baseUrl}}"],
+              "path": ["team-members", "auth-search"],
+              "query": [{ "key": "search", "value": "vladyslav" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const results = pm.response.json();",
+                  "  if (Array.isArray(results) && results.length) {",
+                  "    pm.collectionVariables.set('authUserId', results[0].id);",
+                  "    pm.collectionVariables.set('authUserEmail', results[0].email);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Import Team Member From Auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authUserId\": \"{{authUserId}}\",\n  \"email\": \"{{authUserEmail}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/team-members/import", "host": ["{{baseUrl}}"], "path": ["team-members", "import"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) pm.collectionVariables.set('executorId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Team Member",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/team-members/{{executorId}}", "host": ["{{baseUrl}}"], "path": ["team-members", "{{executorId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprints",
+      "item": [
+        {
+          "name": "Create Sprint",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sprint 34\",\n  \"startDate\": \"2026-08-01T00:00:00.000Z\",\n  \"endDate\": \"2026-08-31T23:59:59.000Z\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sprints", "host": ["{{baseUrl}}"], "path": ["sprints"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) pm.collectionVariables.set('sprintId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Sprints",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/sprints", "host": ["{{baseUrl}}"], "path": ["sprints"] }
+          }
+        },
+        {
+          "name": "Get Sprint",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/sprints/{{sprintId}}", "host": ["{{baseUrl}}"], "path": ["sprints", "{{sprintId}}"] }
+          }
+        },
+        {
+          "name": "Update Sprint",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sprint 34 (extended)\",\n  \"endDate\": \"2026-09-03T23:59:59.000Z\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sprints/{{sprintId}}", "host": ["{{baseUrl}}"], "path": ["sprints", "{{sprintId}}"] }
+          }
+        },
+        {
+          "name": "Delete Sprint",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/sprints/{{sprintId}}", "host": ["{{baseUrl}}"], "path": ["sprints", "{{sprintId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create Task (single executor, multiple brands)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Oktoberfest Promo\",\n  \"description\": \"Додано сторінку турніру, картку на Tournaments, слайдер на головній\",\n  \"platform\": \"SS\",\n  \"taskType\": \"SLIDER\",\n  \"brands\": [\"JC\", \"MW\", \"SR\", \"WR\", \"BH\", \"SG\"],\n  \"executorId\": {{executorId}},\n  \"requestedById\": {{requesterId}},\n  \"reportDate\": \"2026-08-27T00:00:00.000Z\",\n  \"dueDate\": \"2026-08-31T00:00:00.000Z\",\n  \"storyPointsPerBrand\": 0.3,\n  \"jiraKey\": \"CONT-1430\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tasks", "host": ["{{baseUrl}}"], "path": ["tasks"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) pm.collectionVariables.set('taskGroupId', body.id);",
+                  "  if (body.brands && body.brands.length) pm.collectionVariables.set('taskBrandId', body.brands[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Task (different executor per brand)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Oktoberfest Promo (split executors)\",\n  \"description\": \"Додано сторінку турніру, картку на Tournaments, слайдер на головній\",\n  \"platform\": \"SS\",\n  \"taskType\": \"SLIDER\",\n  \"brands\": [\"JC\", \"MW\"],\n  \"differentExecutorsPerBrand\": true,\n  \"brandExecutors\": [\n    { \"brand\": \"JC\", \"executorId\": {{executorId}} },\n    { \"brand\": \"MW\", \"executorId\": {{requesterId}} }\n  ],\n  \"requestedById\": {{requesterId}},\n  \"reportDate\": \"2026-08-27T00:00:00.000Z\",\n  \"storyPointsPerBrand\": 0.3,\n  \"jiraKey\": \"CONT-1430\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tasks", "host": ["{{baseUrl}}"], "path": ["tasks"] }
+          }
+        },
+        {
+          "name": "Get All Tasks",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/tasks", "host": ["{{baseUrl}}"], "path": ["tasks"] }
+          }
+        },
+        {
+          "name": "Get Tasks (filtered)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/tasks?status=IN_PROGRESS&brand=JC&platform=SS&executorId={{executorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks"],
+              "query": [
+                { "key": "status", "value": "IN_PROGRESS" },
+                { "key": "brand", "value": "JC" },
+                { "key": "platform", "value": "SS" },
+                { "key": "executorId", "value": "{{executorId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Task Group Detail (by brand row id)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskBrandId}}", "host": ["{{baseUrl}}"], "path": ["tasks", "{{taskBrandId}}"] }
+          }
+        },
+        {
+          "name": "Get Duplicate Template",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskBrandId}}/duplicate", "host": ["{{baseUrl}}"], "path": ["tasks", "{{taskBrandId}}", "duplicate"] }
+          }
+        },
+        {
+          "name": "Update Task Brand (mark Done)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DONE\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskBrandId}}", "host": ["{{baseUrl}}"], "path": ["tasks", "{{taskBrandId}}"] }
+          }
+        },
+        {
+          "name": "Add Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorId\": {{requesterId}},\n  \"body\": \"Looks good, shipping this.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskGroupId}}/comments", "host": ["{{baseUrl}}"], "path": ["tasks", "{{taskGroupId}}", "comments"] }
+          }
+        },
+        {
+          "name": "Delete Task (whole group, cascades brands)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskBrandId}}", "host": ["{{baseUrl}}"], "path": ["tasks", "{{taskBrandId}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}

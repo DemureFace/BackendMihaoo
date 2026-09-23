@@ -1,0 +1,71 @@
+{
+  "info": {
+    "name": "Currency Service",
+    "_postman_id": "c9e1f4a0-7b3a-4c9a-9b1e-currency-svc-01",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3003" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Currency",
+      "item": [
+        {
+          "name": "List Sites",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/currency/sites", "host": ["{{baseUrl}}"], "path": ["currency", "sites"] }
+          }
+        },
+        {
+          "name": "Convert Text",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Deposit €50 and get a €500 bonus!\",\n  \"site\": \"Spinrise\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/currency/convert", "host": ["{{baseUrl}}"], "path": ["currency", "convert"] }
+          }
+        },
+        {
+          "name": "Amount Breakdown",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"5000€\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/currency/breakdown", "host": ["{{baseUrl}}"], "path": ["currency", "breakdown"] }
+          }
+        },
+        {
+          "name": "Amount Breakdown (Text)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"5000€\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/currency/breakdown/text", "host": ["{{baseUrl}}"], "path": ["currency", "breakdown", "text"] }
+          }
+        }
+      ]
+    }
+  ]
+}

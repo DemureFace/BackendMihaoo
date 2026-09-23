@@ -1,0 +1,142 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("ANALYTICS_DATABASE_URL")
+}
+
+// Illustrative — extend these to match your real platform/type/brand lists.
+// Adding a member requires a migration (npm run prisma:migrate:analytics),
+// which was the tradeoff you picked over a lookup table.
+enum Platform {
+  SS
+  // Prisma enum values can't start with a digit — P8 is the TS-side name,
+  // @map keeps the actual stored/serialized value as the literal "8P".
+  P8 @map("8P")
+  TL
+}
+
+enum TaskType {
+  SLIDER
+  LEGAL
+  AFFILIATE_LANDING
+  NETWORK_TOURNAMENT
+  TRANSLATION_KEY
+  PROMO
+  PROMO_LANDING
+}
+
+enum Brand {
+  JC
+  MW
+  SR
+  SG
+  BH
+  WR
+  RO
+  RANDOM
+}
+
+enum TaskStatus {
+  IN_PROGRESS
+  DONE
+}
+
+// A labeled reporting period. Deliberately NOT referenced by Task — a
+// task's sprint is whichever Sprint's range contains its reportDate,
+// resolved at query time (see SprintsService.findForDate).
+model Sprint {
+  id        Int      @id @default(autoincrement())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+}
+
+// The "watchlist" roster used for executor/requester pickers. Local to
+// this service on purpose: content-ops people don't necessarily have
+// auth-service logins, and reporting must survive account churn.
+// authUserId is an optional, unenforced pointer back to auth-service —
+// never a hard FK, since the two live in separate databases.
+model TeamMember {
+  id          Int      @id @default(autoincrement())
+  authUserId  String?  @unique
+  displayName String
+  email       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  requestedTaskGroups TaskGroup[]   @relation("TaskGroupRequestedBy")
+  executedTaskBrands  TaskBrand[]   @relation("TaskBrandExecutor")
+  comments            TaskComment[]
+}
+
+// The shared fields from one "New task" form submission.
+model TaskGroup {
+  id          Int      @id @default(autoincrement())
+  title       String   @default("Без назви")
+  description String
+  platform    Platform
+  taskType    TaskType
+
+  requestedBy   TeamMember @relation("TaskGroupRequestedBy", fields: [requestedById], references: [id])
+  requestedById Int
+
+  jiraKey    String?
+  dueDate    DateTime?
+  reportDate DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brands   TaskBrand[]
+  comments TaskComment[]
+
+  @@index([reportDate])
+  @@index([requestedById])
+}
+
+// The actual reportable unit — one row per brand selected at creation.
+// This is what the Analytics table lists and filters.
+model TaskBrand {
+  id Int @id @default(autoincrement())
+
+  taskGroup   TaskGroup @relation(fields: [taskGroupId], references: [id], onDelete: Cascade)
+  taskGroupId Int
+
+  brand Brand
+
+  executor   TeamMember @relation("TaskBrandExecutor", fields: [executorId], references: [id])
+  executorId Int
+
+  storyPoints Float
+  status      TaskStatus @default(IN_PROGRESS)
+  closedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taskGroupId, brand])
+  @@index([executorId])
+  @@index([status])
+  @@index([brand])
+}
+
+model TaskComment {
+  id Int @id @default(autoincrement())
+
+  taskGroup   TaskGroup @relation(fields: [taskGroupId], references: [id], onDelete: Cascade)
+  taskGroupId Int
+
+  author   TeamMember @relation(fields: [authorId], references: [id])
+  authorId Int
+
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([taskGroupId])
+}

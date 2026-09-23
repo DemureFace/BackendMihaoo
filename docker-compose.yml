@@ -1,0 +1,228 @@
+services:
+  auth-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5433:5432'
+    volumes:
+      - auth_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  tournament-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tournament_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5435:5432'
+    volumes:
+      - tournament_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  checklist-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: checklist_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5436:5432'
+    volumes:
+      - checklist_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  analytics-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: analytics_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5437:5432'
+    volumes:
+      - analytics_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth-service:
+    build:
+      context: .
+    environment:
+      APP_NAME: auth-service
+      AUTH_SERVICE_PORT: 3001
+      AUTH_DATABASE_URL: postgresql://postgres:postgres@auth-postgres:5432/auth_db?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+    ports:
+      - '3001:3001'
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    healthcheck: &app-healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # Still a work in progress (see docs) — deliberately has no depends_on
+  # pointing at it from any other service, so it can crash/restart without
+  # blocking the rest of the stack from starting (INF-07).
+  currency-service:
+    build:
+      context: .
+    environment:
+      APP_NAME: currency-service
+      CURRENCY_SERVICE_PORT: 3003
+      GOOGLE_TRANSLATE_API_KEY: ${GOOGLE_TRANSLATE_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - '3003:3003'
+    healthcheck:
+      <<: *app-healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3003/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  tournament-service:
+    build:
+      context: .
+    environment:
+      APP_NAME: tournament-service
+      TOURNAMENT_SERVICE_PORT: 3004
+      TOURNAMENT_DATABASE_URL: postgresql://postgres:postgres@tournament-postgres:5432/tournament_db?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - '3004:3004'
+    depends_on:
+      tournament-postgres:
+        condition: service_healthy
+    healthcheck:
+      <<: *app-healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3004/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  bonus-service:
+    build:
+      context: .
+    environment:
+      APP_NAME: bonus-service
+      BONUS_SERVICE_PORT: 3005
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - '3005:3005'
+    healthcheck:
+      <<: *app-healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3005/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  checklist-service:
+    build:
+      context: .
+    environment:
+      APP_NAME: checklist-service
+      CHECKLIST_SERVICE_PORT: 3006
+      CHECKLIST_DATABASE_URL: postgresql://postgres:postgres@checklist-postgres:5432/checklist_db?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - '3006:3006'
+    depends_on:
+      checklist-postgres:
+        condition: service_healthy
+    healthcheck:
+      <<: *app-healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3006/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  banner-export-service:
+    build:
+      context: .
+    environment:
+      APP_NAME: banner-export-service
+      BANNER_EXPORT_SERVICE_PORT: 3007
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:3000}
+      BANNER_EXPORT_STORAGE: /usr/src/app/storage/banner-exports
+      FIGMA_MOCK_MODE: ${FIGMA_MOCK_MODE:-true}
+      FIGMA_TOKEN: ${FIGMA_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - '3007:3007'
+    volumes:
+      - banner_export_storage:/usr/src/app/storage/banner-exports
+    healthcheck:
+      <<: *app-healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3007/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  analytics-service:
+    build:
+      context: .
+    environment:
+      APP_NAME: analytics-service
+      ANALYTICS_SERVICE_PORT: 3008
+      ANALYTICS_DATABASE_URL: postgresql://postgres:postgres@analytics-postgres:5432/analytics_db?schema=public
+      AUTH_SERVICE_URL: http://auth-service:3001
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - '3008:3008'
+    depends_on:
+      analytics-postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      <<: *app-healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3008/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+  gateway:
+    build:
+      context: .
+    environment:
+      APP_NAME: gateway
+      GATEWAY_PORT: 3000
+      AUTH_SERVICE_URL: http://auth-service:3001
+      CURRENCY_SERVICE_URL: http://currency-service:3003
+      TOURNAMENT_SERVICE_URL: http://tournament-service:3004
+      BONUS_SERVICE_URL: http://bonus-service:3005
+      CHECKLIST_SERVICE_URL: http://checklist-service:3006
+      BANNER_EXPORT_SERVICE_URL: http://banner-export-service:3007
+      ANALYTICS_SERVICE_URL: http://analytics-service:3008
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - '3000:3000'
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      tournament-service:
+        condition: service_healthy
+      bonus-service:
+        condition: service_healthy
+      checklist-service:
+        condition: service_healthy
+      banner-export-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+    healthcheck:
+      <<: *app-healthcheck
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+volumes:
+  auth_pg_data:
+  tournament_pg_data:
+  checklist_pg_data:
+  analytics_pg_data:
+  banner_export_storage:

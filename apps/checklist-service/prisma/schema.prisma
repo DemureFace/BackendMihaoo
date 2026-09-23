@@ -1,0 +1,37 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CHECKLIST_DATABASE_URL")
+}
+
+model Checklist {
+  id        Int      @id @default(autoincrement())
+  title     String
+  items     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  completions ChecklistCompletion[]
+}
+
+model ChecklistCompletion {
+  id        Int      @id @default(autoincrement())
+  checklist Checklist @relation(fields: [checklistId], references: [id])
+  checklistId Int
+
+  // Denormalized so a later edit to Checklist.items can't rewrite history —
+  // this completion always shows the checklist exactly as it was answered.
+  itemsSnapshot Json
+
+  userId      String
+  answers     Json
+  completedAt DateTime @default(now())
+
+  @@index([checklistId])
+  @@index([userId])
+}

@@ -1,0 +1,141 @@
+{
+  "info": {
+    "name": "Banner Export Service",
+    "_postman_id": "b1e6f2a0-5b3a-4c9a-9b1e-banner-export-01",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" },
+    { "key": "jobId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tester@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.accessToken) pm.collectionVariables.set('token', body.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tester@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.accessToken) pm.collectionVariables.set('token', body.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Banner Export",
+      "item": [
+        {
+          "name": "Inspect Figma URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"figmaUrl\": \"https://www.figma.com/file/ABC123/My-File?node-id=1-2\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/banner-exports/inspect", "host": ["{{baseUrl}}"], "path": ["banner-exports", "inspect"] }
+          }
+        },
+        {
+          "name": "Create Export",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"campaignId\": \"campaign-001\",\n  \"figmaFileKey\": \"ABC123\",\n  \"nodes\": [\n    {\n      \"id\": \"mock:300x250\",\n      \"name\": \"banner_300x250\",\n      \"width\": 300,\n      \"height\": 250,\n      \"scale\": 1.5\n    },\n    {\n      \"id\": \"mock:728x90\",\n      \"name\": \"banner_728x90\",\n      \"width\": 728,\n      \"height\": 90,\n      \"scale\": 2\n    }\n  ],\n  \"formats\": [\"png\", \"webp\"],\n  \"quality\": {\n    \"webp\": 86,\n    \"pngCompressionLevel\": 9,\n    \"sharpen\": true\n  }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/banner-exports", "host": ["{{baseUrl}}"], "path": ["banner-exports"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) pm.collectionVariables.set('jobId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Job Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/banner-exports/{{jobId}}", "host": ["{{baseUrl}}"], "path": ["banner-exports", "{{jobId}}"] }
+          }
+        },
+        {
+          "name": "Get Manifest",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/banner-exports/{{jobId}}/manifest", "host": ["{{baseUrl}}"], "path": ["banner-exports", "{{jobId}}", "manifest"] }
+          }
+        },
+        {
+          "name": "Download Zip",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/banner-exports/{{jobId}}/download", "host": ["{{baseUrl}}"], "path": ["banner-exports", "{{jobId}}", "download"] }
+          }
+        }
+      ]
+    }
+  ]
+}
