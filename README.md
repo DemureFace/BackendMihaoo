@@ -208,6 +208,17 @@ context (JWT) handling, downstream-unavailable behavior, and the unified API
 error format (`{ error: { code, message, correlationId, timestamp, path } }`,
 via the shared `AllExceptionsFilter` every service registers).
 
+## Deployment
+
+- **Local**: `docker compose up -d --build` (see "Running everything with
+  Docker" above).
+- **Staging**: `render.yaml` (Render Blueprint) provisions every staging
+  service/database as code — see
+  [`docs/staging-deployment.md`](docs/staging-deployment.md) for setup,
+  secrets, migrations, and seeding.
+- **Environment overview** (local/staging/production side by side):
+  [`docs/environment-strategy.md`](docs/environment-strategy.md).
+
 ## Diagrams
 
 Gateway Logic

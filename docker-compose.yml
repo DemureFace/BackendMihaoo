@@ -201,6 +201,7 @@ services:
       BANNER_EXPORT_SERVICE_URL: http://banner-export-service:3007
       ANALYTICS_SERVICE_URL: http://analytics-service:3008
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
     ports:
       - '3000:3000'
     depends_on:

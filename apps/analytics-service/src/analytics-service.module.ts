@@ -6,6 +6,7 @@ import { PrismaService } from './prisma/prisma.service';
 import { TeamMembersModule } from './team-members/team-members.module';
 import { SprintsModule } from './sprints/sprints.module';
 import { TasksModule } from './tasks/tasks.module';
+import { ReferenceDataModule } from './reference-data/reference-data.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TasksModule } from './tasks/tasks.module';
     TeamMembersModule,
     SprintsModule,
     TasksModule,
+    ReferenceDataModule,
     HealthModule.forRoot({
       serviceName: 'analytics-service',
       databaseCheck: {

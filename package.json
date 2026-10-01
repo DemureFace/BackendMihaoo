@@ -51,6 +51,8 @@
     "prisma:deploy:tournament": "prisma migrate deploy --schema apps/tournament-service/prisma/schema.prisma",
     "prisma:deploy:checklist": "prisma migrate deploy --schema apps/checklist-service/prisma/schema.prisma",
     "prisma:deploy:analytics": "prisma migrate deploy --schema apps/analytics-service/prisma/schema.prisma",
+    "prisma:seed:auth": "ts-node -r tsconfig-paths/register apps/auth-service/prisma/seed.ts",
+    "prisma:seed:analytics": "ts-node -r tsconfig-paths/register apps/analytics-service/prisma/seed.ts",
     "postinstall": "npm run prisma:generate"
   },
   "dependencies": {

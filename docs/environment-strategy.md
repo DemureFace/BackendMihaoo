@@ -31,8 +31,11 @@ environment.
   non-Docker runs; Docker injects its own via `docker-compose.yml`).
 - **Secrets**: `.env` is gitignored; `.env.example` ships placeholder values
   only (e.g. `JWT_SECRET=change-me-in-production`).
-- **CORS**: not configured — `app.enableCors` is not called anywhere in the
-  codebase. Not a local-only gap; see Production.
+- **CORS**: configured — `apps/gateway/src/main.ts` calls `app.enableCors`
+  with an allowed-origin list read from the `CORS_ORIGINS` env var
+  (comma-separated), falling back to `http://localhost:5173` +
+  `https://mihaoo.netlify.app` if unset. Locally, the fallback is normally
+  sufficient (unset in `.env.example`).
 - **Storage**: local disk — `BANNER_EXPORT_STORAGE=./storage/banner-exports`
   (bare) or a named Docker volume `banner_export_storage` (Compose).
 - **Deployment process**: `docker compose up -d --build`, then run each
@@ -40,22 +43,43 @@ environment.
   README "Running everything with Docker".
 - **Ownership**: whoever is running it locally.
 
-### Known gaps in the local setup (found while writing this doc)
+### Known gaps in the local setup
 
-- `docker-compose.yml`'s `gateway` service does not set `CURRENCY_SERVICE_URL`
-  or `TOURNAMENT_SERVICE_URL`, but both proxy controllers call
-  `configService.getOrThrow(...)` on those keys — `docker compose up` would
-  crash the gateway container on boot.
-- `currency-service` has no entry in `docker-compose.yml` at all.
-- `.env.example` is missing the `TOURNAMENT_SERVICE_PORT`,
-  `TOURNAMENT_SERVICE_URL`, and `TOURNAMENT_DATABASE_URL` keys that the real
-  local `.env` (and the code) actually use.
+Resolved: `docker-compose.yml`'s `gateway` service now sets
+`CURRENCY_SERVICE_URL` and `TOURNAMENT_SERVICE_URL`, `currency-service` has
+its own entry, and `.env.example` includes the `TOURNAMENT_*` keys. No open
+gaps as of this writing.
 
 ## Staging
 
-Does not exist yet. No staging URLs, no staging Postman environment, no
-staging config anywhere in the repo — this tier needs to be stood up, not
-just documented. **TBD** for every field.
+Stood up per INF-05/INF-06 — see `docs/staging-deployment.md` for the full
+runbook (one-time Render Blueprint setup, secrets, migrations, seeding,
+verification). Summary:
+
+- **Frontend URL**: TBD — owned by the frontend team; whatever it is, it
+  must be set as `CORS_ORIGINS` on the `mihaoo-gateway-staging` service (see
+  `render.yaml`).
+- **Gateway URL**: `https://mihaoo-gateway-staging.onrender.com`.
+- **Service URLs**: `https://mihaoo-<service>-staging.onrender.com` per
+  service, per `render.yaml`.
+- **Databases**: one Postgres per stateful service — `auth`, `tournament`,
+  `checklist`, `analytics` — each named `mihaoo-<service>-db-staging`,
+  declared in `render.yaml`, isolated from both local and production.
+- **Environment variables**: same key set as `.env.example`; cross-service
+  URLs and `APP_NAME` are set directly in `render.yaml`, database URLs via
+  `fromDatabase`, and the remaining secrets via the `mihaoo-staging-secrets`
+  env var group (values entered by hand in the Render dashboard, never
+  committed).
+- **Secrets**: `mihaoo-staging-secrets` env var group in `render.yaml`
+  (`sync: false` entries) — see `docs/staging-deployment.md` for which
+  values go there and why they must not be copied from production.
+- **CORS**: `CORS_ORIGINS` set on `mihaoo-gateway-staging` to the staging
+  frontend's origin — see above.
+- **Storage**: `banner-export-service` gets its own 1 GB persistent disk in
+  staging (`render.yaml`'s `disk:` block) — separate from production's.
+- **Deployment process**: `render.yaml` (Render Blueprint) — see
+  `docs/staging-deployment.md`.
+- **Ownership**: TBD — no `CODEOWNERS` file or ownership doc exists yet.
 
 ## Production
 
@@ -75,9 +99,12 @@ just documented. **TBD** for every field.
 - **Secrets**: TBD — no secrets manager or vault referenced anywhere; likely
   entered directly in the Render dashboard, per the `Dockerfile` comment
   ("`APP_NAME` set per-service in the host's dashboard").
-- **CORS**: undefined — no `app.enableCors` call exists in the code, so
-  production allowed origins are currently unset. Needs a decision (allowed
-  frontend origin(s)) and an implementation.
+- **CORS**: implemented (`app.enableCors` in `apps/gateway/src/main.ts`),
+  configurable via the `CORS_ORIGINS` env var. TBD whether production's
+  Render dashboard actually has `CORS_ORIGINS` set — if unset, it falls back
+  to the two built-in defaults (`http://localhost:5173` +
+  `https://mihaoo.netlify.app`), which happens to already cover the known
+  production frontend.
 - **Storage**: TBD, and worth flagging — banner-export storage is local disk
   in this codebase; if Render's production filesystem is ephemeral or the
   service ever runs multiple instances, that will not survive restarts/scale.
@@ -89,20 +116,22 @@ just documented. **TBD** for every field.
 
 ## Open items to resolve
 
-- [ ] Frontend URL(s) for staging/production (from the frontend team/repo).
-- [ ] Stand up a staging environment, or explicitly decide this project
-      doesn't need one.
+- [ ] Frontend URL(s) for staging/production (from the frontend team/repo) —
+      needed to actually set `CORS_ORIGINS` on each gateway.
+- [x] Stand up a staging environment — `render.yaml` +
+      `docs/staging-deployment.md` (INF-05/INF-06). Applying the blueprint
+      and filling in the dashboard secrets is still a manual, one-time human
+      step.
 - [ ] Confirm production service URLs, database hosts, and env var parity
       with `.env.example`.
-- [ ] Decide and implement a CORS policy (currently unset in all
-      environments).
+- [x] Decide and implement a CORS policy — `CORS_ORIGINS` env var,
+      implemented in `apps/gateway/src/main.ts`. Confirming it's actually
+      *set* on production (vs. relying on the fallback) is still open.
 - [ ] Decide a production storage strategy for `banner-export-service`
-      (persistent disk vs. object storage).
-- [ ] Document the deployment process (ideally as a `render.yaml` / CI
-      pipeline instead of dashboard-only config) and secrets handling.
+      (persistent disk vs. object storage). Staging uses a 1 GB Render disk
+      (`render.yaml`) as an interim answer; revisit for production.
+- [x] Document the deployment process — staging now has one
+      (`render.yaml` + `docs/staging-deployment.md`). Production is still
+      dashboard-only/undocumented.
 - [ ] Assign ownership (a `CODEOWNERS` file, or a table here, per
       service/environment).
-- [ ] Fix the local gaps listed above (`CURRENCY_SERVICE_URL` /
-      `TOURNAMENT_SERVICE_URL` missing from the gateway's Compose env,
-      `currency-service` missing from `docker-compose.yml`, `.env.example`
-      missing the `TOURNAMENT_*` keys).

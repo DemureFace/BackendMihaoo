@@ -5,6 +5,7 @@ import { INTERNAL_HTTP_TIMEOUT_MS, JwtStrategy } from 'common/common';
 import { TeamMembersProxyController } from './team-members-proxy.controller';
 import { SprintsProxyController } from './sprints-proxy.controller';
 import { TasksProxyController } from './tasks-proxy.controller';
+import { ReferenceDataProxyController } from './reference-data-proxy.controller';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { TasksProxyController } from './tasks-proxy.controller';
     TeamMembersProxyController,
     SprintsProxyController,
     TasksProxyController,
+    ReferenceDataProxyController,
   ],
   providers: [JwtStrategy],
 })

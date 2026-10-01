@@ -19,8 +19,18 @@ rest and shows up as one failing check on the PR:
    (auth, tournament, checklist, analytics). This only checks schema syntax;
    it does not connect to a database.
 4. **Unit tests** — `npm test -- --passWithNoTests`.
-5. **Build** — `npm run build:all`, building all 8 Nest apps
+5. **Apply auth-service migrations** — `npm run prisma:deploy:auth` against
+   the job's `postgres` service container (see below).
+6. **E2E tests (gateway)** — `npm run test:e2e:gateway`.
+7. **E2E tests (auth)** — `npm run test:e2e:auth`.
+8. **Build** — `npm run build:all`, building all 8 Nest apps
    (gateway + 7 services).
+
+The job also declares a `postgres:16-alpine` **service container**
+(`POSTGRES_DB: auth_db`, health-checked with `pg_isready` before any step
+runs) — needed because `test:e2e:auth` boots the real `AuthServiceModule`,
+whose `PrismaService.onModuleInit` calls `$connect()` for real. `auth_db` is
+the only database currently needed here (see "Why only one database" below).
 
 Node is pinned via `actions/setup-node`'s `node-version-file: .nvmrc`
 (currently `24.17`), matching `engines.node` in `package.json`.
@@ -31,8 +41,25 @@ Node is pinned via `actions/setup-node`'s `node-version-file: .nvmrc`
   vars referenced in each `schema.prisma` (`AUTH_DATABASE_URL`,
   `TOURNAMENT_DATABASE_URL`, `CHECKLIST_DATABASE_URL`,
   `ANALYTICS_DATABASE_URL`) to simply be *set* for `generate`/`validate` to
-  run, even though neither command connects to a real database. The values
-  in the workflow's `env:` block are placeholders, not real credentials.
+  run. `AUTH_DATABASE_URL` now does double duty — the same value is also the
+  *real* connection string the `postgres` service container answers to for
+  the migration/e2e steps; the other three remain unconnected placeholders,
+  since no test currently touches those databases.
+- **Dummy `JWT_SECRET`/`JWT_EXPIRES_IN` and `*_SERVICE_URL` env vars.**
+  `JwtStrategy` (`libs/common/src/auth/jwt.strategy.ts`) and every gateway
+  proxy controller read these via `ConfigService.getOrThrow` in their
+  *constructors* — per `docs/service-communication.md` §1, "a missing URL is
+  a startup-time failure, not a runtime surprise." The gateway e2e suite
+  only asserts a 401 on an unauthenticated request, so none of these values
+  need to be real or reachable — they just need to exist, so the module can
+  finish compiling in `Test.createTestingModule(...).compile()`.
+- **Why only one database (`auth_db`), not four.** Only `test:e2e:auth`
+  currently exercises a module with a live Prisma connection.
+  `test:e2e:gateway` needs no database at all (the gateway is stateless).
+  `tournament`'s e2e config exists but has no `.e2e-spec.ts` file yet (see
+  "What's still missing"). Add a `TOURNAMENT_DATABASE_URL`-backed database
+  and its own migration step only once a real tournament e2e spec exists —
+  provisioning it earlier would just be an unused service container.
 - **`**/src/generated/**` is excluded from ESLint.** Each Prisma-backed
   service generates its client into `src/generated/prisma` (gitignored, but
   present on disk after `prisma generate`, which runs in `postinstall`
@@ -43,36 +70,31 @@ Node is pinned via `actions/setup-node`'s `node-version-file: .nvmrc`
   existing `no-explicit-any: 'off'` / `no-unsafe-argument: 'warn'`
   convention already in `eslint.config.mjs`. They still show up on PRs;
   they just don't block merge.
-- **Tests run with `--passWithNoTests`.** Keep this in mind if you're
-  relying on the test step to mean "there are passing tests" — right now it
-  only means "nothing failed," which is also true when nothing ran. Add
-  real specs (see below) to make it mean something.
+- **Unit tests run with `--passWithNoTests`.** Keep this in mind if you're
+  relying on that step to mean "there are passing tests" — on its own it
+  only means "nothing failed," which is also true when nothing ran. The e2e
+  steps deliberately do **not** get this flag — an e2e suite with no spec
+  file should fail the build (missing coverage you thought you had), not
+  pass silently. This is also why `tournament`'s e2e config isn't wired into
+  CI yet: it has no spec file, so `test:e2e:tournament` would fail outright
+  on "no tests found."
 
-## Unit tests
+## Tests
 
-Jest is configured in `package.json` (`testRegex: ".*\\.spec\\.ts$"`,
-rooted at `apps/` and `libs/`) — a `*.spec.ts` file next to the code it
-tests is picked up automatically, no extra wiring needed.
-
-Two spec files exist as a starting point, both testing pure utility
-functions with no NestJS DI or database involved:
-
-- `apps/currency-service/src/currency/amount-locale-map.util.spec.ts`
-- `apps/bonus-service/src/bonus-template/date-label.util.spec.ts`
-
-Good next candidates follow the same shape — small, pure, business-logic
-functions with no framework or I/O dependencies, e.g.
-`apps/banner-export-service/src/banner-export/utils/collect-banner-nodes.util.ts`
-or `apps/bonus-service/src/bonus-template/text-substitution.util.ts`.
-Service/controller classes that depend on NestJS DI or Prisma need
-`@nestjs/testing`'s `Test.createTestingModule` with mocked providers instead
-— none of those exist yet.
-
-The `test:e2e:*` scripts (gateway, auth, tournament) are **not** run in CI —
-they need a real running database and aren't wired up here.
+What's tested, how each kind is written, and the best practices behind them
+is documented in full in **`docs/testing.md`** — this file only covers how
+the pipeline *runs* them (steps 4/6/7 above) and the env vars that make
+that possible (see above). Short version: pure-function unit tests need
+nothing extra; the mocked-DI controller test needs nothing extra either;
+the e2e tests are the reason this job has a `postgres` service container
+and the dummy `JWT_SECRET`/`*_SERVICE_URL` env vars at all.
 
 ## What's still missing
 
+- **A `tournament-service` e2e spec, and proxy-controller specs beyond
+  `team-members-proxy`.** See `docs/testing.md`'s "What's still missing"
+  for the full test-coverage gap list — this file only tracks pipeline-level
+  gaps below.
 - **Branch protection.** The pipeline runs and reports a status, but nothing
   currently stops a PR from merging on a red check. Enable it in the GitHub
   repo: Settings → Branches → add a rule on `main` → require the `ci` status

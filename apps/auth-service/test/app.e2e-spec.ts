@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import request from 'supertest';
 import { AuthServiceModule } from './../src/auth-service.module';
 
 describe('AuthServiceController (e2e)', () => {
@@ -12,6 +12,12 @@ describe('AuthServiceController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    // Mirrors apps/auth-service/src/main.ts's bootstrap() — without this,
+    // DTO validation (e.g. RegisterDto's @IsEmail) never runs, and this
+    // suite silently tests nothing.
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    );
     await app.init();
   });
 

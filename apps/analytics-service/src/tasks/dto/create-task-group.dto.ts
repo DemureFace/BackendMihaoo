@@ -13,7 +13,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { Brand, Platform, TaskType } from '../../generated/prisma';
+import { Brand, Platform, TaskStatus, TaskType } from '../../generated/prisma';
 
 export class BrandExecutorDto {
   @IsEnum(Brand)
@@ -79,4 +79,21 @@ export class CreateTaskGroupDto {
   @IsOptional()
   @IsString()
   jiraKey?: string;
+
+  // Applies to every brand row created by this submission — matches
+  // storyPointsPerBrand's shared-across-the-submission shape, since
+  // nothing in the prototype form suggests a per-brand status at create
+  // time. Defaults to IN_PROGRESS. Lets a task be logged as already
+  // complete (e.g. backfilling historical work) instead of always
+  // starting IN_PROGRESS and requiring a separate PATCH.
+  @IsOptional()
+  @IsEnum(TaskStatus)
+  status?: TaskStatus;
+
+  // Required exactly when status is DONE — see TasksService.createTaskGroup
+  // for the check — since a completed task must have a real, user-chosen
+  // completion date, not a default.
+  @IsOptional()
+  @IsDateString()
+  closedAt?: string;
 }

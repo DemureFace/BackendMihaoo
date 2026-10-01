@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Headers,
   Param,
   Patch,
@@ -72,8 +73,26 @@ export class TasksProxyController {
     );
   }
 
-  // Registered before ':id' so "duplicate" is routed here, not forwarded
-  // as a literal id lookup.
+  // Registered before ':id' so "export" (and "duplicate", below) is routed
+  // here, not forwarded as a literal id lookup.
+  @Get('export')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="tasks.csv"')
+  exportCsv(
+    @Query() query: Record<string, string>,
+    @Headers('authorization') authorization: string,
+    @Headers(CORRELATION_ID_HEADER) correlationId: string,
+  ) {
+    return this.forward(
+      'get',
+      '/export',
+      authorization,
+      correlationId,
+      undefined,
+      query,
+    );
+  }
+
   @Get(':id/duplicate')
   getDuplicateTemplate(
     @Param('id') id: string,
@@ -116,6 +135,22 @@ export class TasksProxyController {
     return this.forward('patch', `/${id}`, authorization, correlationId, body);
   }
 
+  @Patch(':id/group')
+  updateGroup(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers('authorization') authorization: string,
+    @Headers(CORRELATION_ID_HEADER) correlationId: string,
+  ) {
+    return this.forward(
+      'patch',
+      `/${id}/group`,
+      authorization,
+      correlationId,
+      body,
+    );
+  }
+
   @Delete(':id')
   remove(
     @Param('id') id: string,
@@ -135,6 +170,31 @@ export class TasksProxyController {
     return this.forward(
       'post',
       `/${id}/comments`,
+      authorization,
+      correlationId,
+      body,
+    );
+  }
+
+  @Post(':id/restore')
+  restore(
+    @Param('id') id: string,
+    @Headers('authorization') authorization: string,
+    @Headers(CORRELATION_ID_HEADER) correlationId: string,
+  ) {
+    return this.forward('post', `/${id}/restore`, authorization, correlationId);
+  }
+
+  @Post(':id/progress')
+  addProgressEntry(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers('authorization') authorization: string,
+    @Headers(CORRELATION_ID_HEADER) correlationId: string,
+  ) {
+    return this.forward(
+      'post',
+      `/${id}/progress`,
       authorization,
       correlationId,
       body,

@@ -1,0 +1,234 @@
+# Render Blueprint for the STAGING environment only (INF-05 / INF-06).
+#
+# Production was created by hand in the Render dashboard (see
+# docs/environment-strategy.md) and is untouched by this file — every
+# resource below is a distinct, "-staging"-suffixed service/database, so
+# syncing this blueprint can never overwrite or delete a production resource.
+#
+# How to use: Render dashboard → New → Blueprint → point at this repo/branch
+# → Render diffs this file against existing "-staging" resources and shows
+# what it will create/update before applying anything.
+#
+# `sync: false` below marks a var Render requires to exist but will never
+# fill in from this file — you type the real value into that service's
+# "Environment" tab in the dashboard once, and Render leaves it alone on
+# every later blueprint sync. (A root-level `envVarGroups` block looked like
+# a way to share these across services, but Render silently ignores
+# `sync: false` on anything defined inside an env var group — each secret
+# below is declared directly on the one service that actually reads it,
+# matching docker-compose.yml's per-service env blocks.)
+#
+# Full walkthrough, secrets handling, migrations, and seeding:
+# see docs/staging-deployment.md.
+
+databases:
+  - name: mihaoo-auth-db-staging
+    databaseName: auth_db_staging
+    plan: starter
+    region: oregon
+    postgresMajorVersion: '16'
+
+  - name: mihaoo-tournament-db-staging
+    databaseName: tournament_db_staging
+    plan: starter
+    region: oregon
+    postgresMajorVersion: '16'
+
+  - name: mihaoo-checklist-db-staging
+    databaseName: checklist_db_staging
+    plan: starter
+    region: oregon
+    postgresMajorVersion: '16'
+
+  - name: mihaoo-analytics-db-staging
+    databaseName: analytics_db_staging
+    plan: starter
+    region: oregon
+    postgresMajorVersion: '16'
+
+services:
+  - type: web
+    name: mihaoo-auth-service-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: auth-service
+      - key: AUTH_SERVICE_PORT
+        value: '3001'
+      - key: AUTH_DATABASE_URL
+        fromDatabase:
+          name: mihaoo-auth-db-staging
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 15m
+
+  - type: web
+    name: mihaoo-currency-service-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: currency-service
+      - key: CURRENCY_SERVICE_PORT
+        value: '3003'
+      - key: JWT_SECRET
+        sync: false
+      - key: GOOGLE_TRANSLATE_API_KEY
+        sync: false
+
+  - type: web
+    name: mihaoo-tournament-service-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: tournament-service
+      - key: TOURNAMENT_SERVICE_PORT
+        value: '3004'
+      - key: TOURNAMENT_DATABASE_URL
+        fromDatabase:
+          name: mihaoo-tournament-db-staging
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false
+
+  - type: web
+    name: mihaoo-bonus-service-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: bonus-service
+      - key: BONUS_SERVICE_PORT
+        value: '3005'
+      - key: JWT_SECRET
+        sync: false
+
+  - type: web
+    name: mihaoo-checklist-service-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: checklist-service
+      - key: CHECKLIST_SERVICE_PORT
+        value: '3006'
+      - key: CHECKLIST_DATABASE_URL
+        fromDatabase:
+          name: mihaoo-checklist-db-staging
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false
+
+  - type: web
+    name: mihaoo-banner-export-service-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    disk:
+      name: banner-export-storage-staging
+      mountPath: /usr/src/app/storage/banner-exports
+      sizeGB: 1
+    envVars:
+      - key: APP_NAME
+        value: banner-export-service
+      - key: BANNER_EXPORT_SERVICE_PORT
+        value: '3007'
+      - key: BANNER_EXPORT_STORAGE
+        value: /usr/src/app/storage/banner-exports
+      - key: BACKEND_PUBLIC_URL
+        value: https://mihaoo-gateway-staging.onrender.com
+      - key: FIGMA_MOCK_MODE
+        value: 'true'
+      - key: FIGMA_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+
+  - type: web
+    name: mihaoo-analytics-service-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: analytics-service
+      - key: ANALYTICS_SERVICE_PORT
+        value: '3008'
+      - key: ANALYTICS_DATABASE_URL
+        fromDatabase:
+          name: mihaoo-analytics-db-staging
+          property: connectionString
+      - key: AUTH_SERVICE_URL
+        value: https://mihaoo-auth-service-staging.onrender.com
+      - key: JWT_SECRET
+        sync: false
+
+  - type: web
+    name: mihaoo-gateway-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: gateway
+      - key: GATEWAY_PORT
+        value: '3000'
+      - key: AUTH_SERVICE_URL
+        value: https://mihaoo-auth-service-staging.onrender.com
+      - key: CURRENCY_SERVICE_URL
+        value: https://mihaoo-currency-service-staging.onrender.com
+      - key: TOURNAMENT_SERVICE_URL
+        value: https://mihaoo-tournament-service-staging.onrender.com
+      - key: BONUS_SERVICE_URL
+        value: https://mihaoo-bonus-service-staging.onrender.com
+      - key: CHECKLIST_SERVICE_URL
+        value: https://mihaoo-checklist-service-staging.onrender.com
+      - key: BANNER_EXPORT_SERVICE_URL
+        value: https://mihaoo-banner-export-service-staging.onrender.com
+      - key: ANALYTICS_SERVICE_URL
+        value: https://mihaoo-analytics-service-staging.onrender.com
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

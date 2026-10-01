@@ -7,17 +7,7 @@ import { rethrowUpstreamError } from '../http-client.util';
 import { CreateTeamMemberDto } from './dto/create-team-member.dto';
 import { UpdateTeamMemberDto } from './dto/update-team-member.dto';
 import { ImportTeamMemberDto } from './dto/import-team-member.dto';
-
-// "vladyslav.ko" -> "Vladyslav Ko" — just a starting point; the caller can
-// always override it via ImportTeamMemberDto.displayName.
-function deriveDisplayName(email: string): string {
-  return email
-    .split('@')[0]
-    .split(/[.\-_]+/)
-    .filter(Boolean)
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join(' ');
-}
+import { deriveDisplayName } from '../common/derive-display-name.util';
 
 @Injectable()
 export class TeamMembersService {

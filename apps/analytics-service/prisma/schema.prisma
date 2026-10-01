@@ -28,8 +28,18 @@ enum TaskType {
   TRANSLATION_KEY
   PROMO
   PROMO_LANDING
+  NEW_GEO_SETUP
+  NEW_BRAND_SETUP
+  VIP
+  LOYALTY
+  GAME_CATEGORIES
+  BUG
+  OTHER
 }
 
+// RO is kept only so pre-existing TaskBrand rows keep reading back fine —
+// it's no longer offered or accepted for new tasks on any platform (see
+// ReferenceDataService's BRAND_PLATFORM_MAP, which omits it entirely).
 enum Brand {
   JC
   MW
@@ -38,6 +48,14 @@ enum Brand {
   BH
   WR
   RO
+  TS
+  CG
+  WK
+  NS
+  TL
+  HL
+  SRH
+  SA
   RANDOM
 }
 
@@ -117,13 +135,46 @@ model TaskBrand {
   status      TaskStatus @default(IN_PROGRESS)
   closedAt    DateTime?
 
+  // Soft delete for this one row — null means active. Deleting a brand
+  // row never touches its siblings, its TaskGroup, or its comments; it
+  // only sets this. Restoring just clears it back to null, which is why
+  // nothing else needs to be undone to bring a row back intact.
+  deletedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  comments        TaskComment[]
+  progressEntries TaskBrandProgress[]
 
   @@unique([taskGroupId, brand])
   @@index([executorId])
   @@index([status])
   @@index([brand])
+  @@index([deletedAt])
+}
+
+// The journal of actually-done work, separate from storyPoints (the
+// task's overall estimate, edited via TaskBrand) and closedAt (when the
+// row was marked DONE). Append-only by design — see TasksService.addProgressEntry
+// and the "regular editing doesn't erase progress history" requirement:
+// there's no update/delete route for a row here, only inserts. A task can
+// carry contributions dated across several periods (e.g. 0.4 SP one week,
+// 0.6 SP the next), independent of when — or whether — its status changes.
+model TaskBrandProgress {
+  id Int @id @default(autoincrement())
+
+  taskBrand   TaskBrand @relation(fields: [taskBrandId], references: [id], onDelete: Cascade)
+  taskBrandId Int
+
+  date        DateTime
+  storyPoints Float
+  note        String?
+
+  createdAt DateTime @default(now())
+
+  @@index([taskBrandId])
+  @@index([date])
 }
 
 model TaskComment {
@@ -132,6 +183,13 @@ model TaskComment {
   taskGroup   TaskGroup @relation(fields: [taskGroupId], references: [id], onDelete: Cascade)
   taskGroupId Int
 
+  // The specific branded row this comment was written against. Nullable
+  // only for comments created before this field existed — those are kept
+  // as marked shared/group-level history rather than guessed onto one
+  // sibling brand. Every new comment sets this.
+  taskBrand   TaskBrand? @relation(fields: [taskBrandId], references: [id], onDelete: Cascade)
+  taskBrandId Int?
+
   author   TeamMember @relation(fields: [authorId], references: [id])
   authorId Int
 
@@ -139,4 +197,5 @@ model TaskComment {
   createdAt DateTime @default(now())
 
   @@index([taskGroupId])
+  @@index([taskBrandId])
 }
