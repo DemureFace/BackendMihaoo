@@ -9,10 +9,45 @@ env:
   TOURNAMENT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tournament_db?schema=public
   CHECKLIST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/checklist_db?schema=public
   ANALYTICS_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/analytics_db?schema=public
+  # Dummy secret — only needs to exist for JwtStrategy/JwtModule to boot in
+  # the gateway/auth e2e suites below; nothing here verifies a real token.
+  JWT_SECRET: ci-test-secret
+  JWT_EXPIRES_IN: 15m
+  # Dummy downstream URLs — the gateway e2e suite only needs these present
+  # at bootstrap (every proxy controller reads its own via
+  # ConfigService.getOrThrow in its constructor, see
+  # docs/service-communication.md §1); it never actually calls them.
+  AUTH_SERVICE_URL: http://localhost:3001
+  CURRENCY_SERVICE_URL: http://localhost:3003
+  TOURNAMENT_SERVICE_URL: http://localhost:3004
+  BONUS_SERVICE_URL: http://localhost:3005
+  CHECKLIST_SERVICE_URL: http://localhost:3006
+  BANNER_EXPORT_SERVICE_URL: http://localhost:3007
+  ANALYTICS_SERVICE_URL: http://localhost:3008
 
 jobs:
   ci:
     runs-on: ubuntu-latest
+
+    # Only auth-service's e2e suite needs a real database right now (it's
+    # the only *.e2e-spec.ts that exercises a module with a PrismaService,
+    # which connects for real on module init). One database is enough —
+    # matches AUTH_DATABASE_URL above.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: auth_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +67,15 @@ jobs:
 
       - name: Unit tests
         run: npm test -- --passWithNoTests
+
+      - name: Apply auth-service migrations
+        run: npm run prisma:deploy:auth
+
+      - name: E2E tests (gateway)
+        run: npm run test:e2e:gateway
+
+      - name: E2E tests (auth)
+        run: npm run test:e2e:auth
 
       - name: Build backend services
         run: npm run build:all
